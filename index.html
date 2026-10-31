@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UGIX RPP AI - Generator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a73e8',
+                        secondary: '#e8f0fe',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        /* Toast Animation */
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        .toast-exit { animation: slideOut 0.3s ease-out forwards; }
+        /* Hide scrollbar for clean UI */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased overflow-x-hidden min-h-screen flex flex-col">
+
+    <!-- PWA Install Prompt Banner -->
+    <div id="pwa-install-banner" class="hidden bg-primary text-white p-3 flex justify-between items-center fixed bottom-0 w-full z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-transform">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-mobile-alt text-xl"></i>
+            <div>
+                <p class="font-bold text-sm">Install UGIX RPP</p>
+                <p class="text-xs opacity-90">Akses lebih cepat dari Home Screen</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="hideInstallPromotion()" class="text-white text-xs px-2 py-1 rounded hover:bg-blue-700">Nanti</button>
+            <button onclick="installPWA()" class="bg-white text-primary text-xs font-bold px-4 py-2 rounded shadow hover:bg-gray-100">Install</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- 1. LOGIN SECTION -->
+    <div id="login-section" class="flex flex-col min-h-screen items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-primary"></div>
+            <div class="w-16 h-16 bg-secondary text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-brain text-3xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">UGIX AI</h1>
+            <p class="text-sm text-gray-500 mb-8">RPP Generator Workspace</p>
+            
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div class="text-left">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" id="username" required class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition" placeholder="Masukkan username">
+                    </div>
+                </div>
+                <div class="text-left">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input type="password" id="password" required class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition" placeholder="Masukkan password">
+                    </div>
+                </div>
+                <button type="submit" id="btn-login" class="w-full bg-primary text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition flex justify-center items-center gap-2">
+                    <span>Masuk</span> <i class="fas fa-arrow-right text-sm"></i>
+                </button>
+            </form>
+            
+            <div class="mt-6 text-xs text-gray-400 bg-gray-50 p-3 rounded text-left">
+                <p class="font-semibold text-gray-500 mb-1">Info Mode Preview:</p>
+                <p>Admin: admin / edudigital</p>
+                <p>Peserta: peserta / edudigital</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MAIN APP SECTION -->
+    <div id="main-section" class="hidden flex-col min-h-screen bg-gray-50">
+        
+        <!-- Navbar -->
+        <nav class="bg-white shadow-sm sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-primary text-white rounded flex items-center justify-center">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <span class="font-bold text-xl text-gray-900 tracking-tight hidden sm:block">UGIX RPP</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-right hidden sm:block text-sm">
+                            <p class="text-gray-900 font-semibold leading-none" id="user-display-name">User</p>
+                            <p class="text-gray-500 text-xs" id="user-display-role">Role</p>
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-secondary text-primary flex items-center justify-center font-bold text-sm border border-blue-200">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <button onclick="handleLogout()" class="text-gray-500 hover:text-red-500 transition px-2 py-1" title="Keluar">
+                            <i class="fas fa-sign-out-alt text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu Tabs -->
+            <div class="flex border-t border-gray-200 sm:hidden">
+                <button onclick="switchTab('generator')" id="tab-generator" class="flex-1 py-3 text-sm font-medium text-center border-b-2 border-primary text-primary transition">
+                    <i class="fas fa-magic mr-1"></i> Generator
+                </button>
+                <button onclick="switchTab('settings')" id="tab-settings" class="flex-1 py-3 text-sm font-medium text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">
+                    <i class="fas fa-cog mr-1"></i> Pengaturan
+                </button>
+            </div>
+        </nav>
+
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-6">
+            
+            <!-- Sidebar / Settings (Desktop) -->
+            <aside id="sidebar-panel" class="w-full md:w-1/3 flex-shrink-0 hidden sm:block space-y-6">
+                
+                <!-- API Key Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-center gap-2 mb-4 text-gray-800">
+                        <i class="fas fa-key text-primary"></i>
+                        <h2 class="font-bold text-lg">Konfigurasi Gemini API</h2>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4">Aplikasi ini membutuhkan API Key dari Google AI Studio untuk berfungsi.</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">API Key</label>
+                            <input type="password" id="api-key-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition" placeholder="AIzaSy...">
+                        </div>
+                        <button onclick="saveApiKey()" class="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50 transition text-sm flex items-center justify-center gap-2 shadow-sm">
+                            <i class="fas fa-save"></i> Simpan API Key
+                        </button>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-primary hover:underline flex items-center gap-1">
+                            <i class="fas fa-external-link-alt"></i> Dapatkan API Key Gratis di sini
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Info Card -->
+                <div class="bg-gradient-to-br from-primary to-blue-700 rounded-xl shadow-sm p-5 text-white">
+                    <h3 class="font-bold mb-2 flex items-center gap-2"><i class="fas fa-info-circle"></i> Tips RPP</h3>
+                    <ul class="text-sm space-y-2 opacity-90 list-disc pl-4">
+                        <li>Gunakan materi pokok yang spesifik.</li>
+                        <li>Pastikan profil pelajar pancasila sesuai dengan karakter materi.</li>
+                        <li>Generasi membutuhkan waktu sekitar 10-15 detik.</li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <div id="main-content-panel" class="w-full md:w-2/3 flex-col gap-6 flex">
+                
+                <!-- Generator Form -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6">
+                    <h2 class="font-bold text-xl text-gray-800 mb-4 border-b pb-3 flex items-center gap-2">
+                        <i class="fas fa-file-signature text-primary"></i> Parameter RPP
+                    </h2>
+                    
+                    <form id="generator-form" onsubmit="handleGenerate(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jenjang & Kelas</label>
+                                <select id="rpp-jenjang" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition">
+                                    <optgroup label="SD / Sederajat">
+                                        <option value="SD Kelas 1">SD Kelas 1</option>
+                                        <option value="SD Kelas 2">SD Kelas 2</option>
+                                        <option value="SD Kelas 3">SD Kelas 3</option>
+                                        <option value="SD Kelas 4">SD Kelas 4</option>
+                                        <option value="SD Kelas 5">SD Kelas 5</option>
+                                        <option value="SD Kelas 6">SD Kelas 6</option>
+                                    </optgroup>
+                                    <optgroup label="SMP / Sederajat">
+                                        <option value="SMP Kelas 7">SMP Kelas 7</option>
+                                        <option value="SMP Kelas 8">SMP Kelas 8</option>
+                                        <option value="SMP Kelas 9">SMP Kelas 9</option>
+                                    </optgroup>
+                                    <optgroup label="SMA/SMK / Sederajat">
+                                        <option value="SMA/SMK Kelas 10">SMA/SMK Kelas 10</option>
+                                        <option value="SMA/SMK Kelas 11">SMA/SMK Kelas 11</option>
+                                        <option value="SMA/SMK Kelas 12">SMA/SMK Kelas 12</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mata Pelajaran</label>
+                                <input type="text" id="rpp-mapel" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition" placeholder="Contoh: Matematika">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Materi Pokok / Tujuan</label>
+                            <input type="text" id="rpp-materi" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition" placeholder="Contoh: Pecahan Senilai">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Profil Pelajar Pancasila</label>
+                                <input type="text" id="rpp-profil" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition" placeholder="Contoh: Bernalar Kritis, Mandiri">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Alokasi Waktu</label>
+                                <input type="text" id="rpp-waktu" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition" placeholder="Contoh: 2 x 35 Menit (1 Pertemuan)">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btn-generate" class="mt-4 w-full bg-primary text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition shadow-md flex justify-center items-center gap-2">
+                            <i class="fas fa-magic"></i> <span>Generate RPP dengan UGIX AI</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Result Area -->
+                <div id="result-container" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[500px]">
+                    <div class="bg-gray-50 border-b border-gray-200 px-4 py-3 flex justify-between items-center">
+                        <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                            <i class="fas fa-file-alt text-primary"></i> Hasil RPP
+                        </h3>
+                        <div class="flex gap-2">
+                            <button onclick="copyResult()" class="text-gray-500 hover:text-primary transition p-1.5 rounded hover:bg-gray-200" title="Salin Teks">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button onclick="downloadPDF()" class="text-gray-500 hover:text-primary transition p-1.5 rounded hover:bg-gray-200" title="Cetak / PDF">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-0 relative">
+                        <!-- Loading Overlay -->
+                        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-primary mb-4"></div>
+                            <p class="text-gray-600 font-medium animate-pulse">UGIX sedang merancang RPP...</p>
+                        </div>
+                        
+                        <textarea id="result-text" class="w-full h-full p-6 outline-none resize-none font-mono text-sm text-gray-700 leading-relaxed bg-white" readonly placeholder="Hasil akan muncul di sini..."></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT & APP LOGIC -->
+    <script>
+        // ==========================================
+        // KONFIGURASI APLIKASI
+        // UBAH IS_PREVIEW KE false JIKA SUDAH DI-DEPLOY DAN DI-HUBUNGKAN KE GAS BACKEND
+        // ==========================================
+        const IS_PREVIEW = true;
+
+        // STATE MANAGER
+        let appState = {
+            currentUser: null,
+            apiKey: '',
+            deferredPrompt: null
+        };
+
+        // DOM ELEMENTS
+        const loginSection = document.getElementById('login-section');
+        const mainSection = document.getElementById('main-section');
+        const toastContainer = document.getElementById('toast-container');
+        const btnLogin = document.getElementById('btn-login');
+        const pwaBanner = document.getElementById('pwa-install-banner');
+
+        // INIT & PWA SETUP
+        document.addEventListener('DOMContentLoaded', () => {
+            setupPWA();
+            checkSession();
+        });
+
+        // ----------------- PWA & MANIFEST -----------------
+        function setupPWA() {
+            // 1. Inject Manifest
+            const manifest = {
+                name: "UGIX RPP Generator",
+                short_name: "UGIX RPP",
+                start_url: window.location.href,
+                display: "standalone",
+                background_color: "#f3f4f6",
+                theme_color: "#1a73e8",
+                icons: [
+                    { src: "https://cdn-icons-png.flaticon.com/512/3135/3135679.png", sizes: "192x192", type: "image/png" },
+                    { src: "https://cdn-icons-png.flaticon.com/512/3135/3135679.png", sizes: "512x512", type: "image/png" }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestUrl}">`);
+
+            // 2. Service Worker (Dummy Blob for standalone offline cache)
+            const swCode = `
+                const CACHE_NAME = 'ugix-v1';
+                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME)));
+                self.addEventListener('fetch', e => {});
+            `;
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
+            }
+
+            // 3. Install Prompt Logic
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                appState.deferredPrompt = e;
+                if (!localStorage.getItem('pwaPromptIgnored')) {
+                    pwaBanner.classList.remove('hidden');
+                }
+            });
+        }
+
+        function hideInstallPromotion() {
+            pwaBanner.classList.add('hidden');
+            localStorage.setItem('pwaPromptIgnored', 'true');
+        }
+
+        async function installPWA() {
+            hideInstallPromotion();
+            if (appState.deferredPrompt) {
+                appState.deferredPrompt.prompt();
+                const { outcome } = await appState.deferredPrompt.userChoice;
+                console.log(`User response to install prompt: ${outcome}`);
+                appState.deferredPrompt = null;
+            }
+        }
+
+        // ----------------- UI UTILS -----------------
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-blue-600');
+            const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle');
+            
+            toast.className = `toast-enter pointer-events-auto flex items-center w-full max-w-xs p-4 text-white ${bgColor} rounded-lg shadow-lg`;
+            toast.innerHTML = `<i class="fas ${icon} mr-3 text-xl"></i><div class="text-sm font-medium">${message}</div>`;
+            
+            toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function switchTab(tab) {
+            const sidebar = document.getElementById('sidebar-panel');
+            const main = document.getElementById('main-content-panel');
+            const tabGen = document.getElementById('tab-generator');
+            const tabSet = document.getElementById('tab-settings');
+
+            if (tab === 'generator') {
+                sidebar.classList.add('hidden');
+                sidebar.classList.remove('block');
+                main.classList.remove('hidden');
+                main.classList.add('flex');
+                
+                tabGen.classList.replace('border-transparent', 'border-primary');
+                tabGen.classList.replace('text-gray-500', 'text-primary');
+                tabSet.classList.replace('border-primary', 'border-transparent');
+                tabSet.classList.replace('text-primary', 'text-gray-500');
+            } else {
+                sidebar.classList.remove('hidden');
+                sidebar.classList.add('block', 'w-full');
+                main.classList.add('hidden');
+                main.classList.remove('flex');
+                
+                tabSet.classList.replace('border-transparent', 'border-primary');
+                tabSet.classList.replace('text-gray-500', 'text-primary');
+                tabGen.classList.replace('border-primary', 'border-transparent');
+                tabGen.classList.replace('text-primary', 'text-gray-500');
+            }
+        }
+
+        // ----------------- AUTH LOGIC -----------------
+        function checkSession() {
+            const savedUser = localStorage.getItem('ugix_user');
+            const savedKey = localStorage.getItem('ugix_key');
+            if (savedUser) {
+                appState.currentUser = JSON.parse(savedUser);
+                appState.apiKey = savedKey || '';
+                showMainApp();
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            
+            btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+            btnLogin.disabled = true;
+
+            if (IS_PREVIEW) {
+                // Dummy Login Logic for Canvas
+                setTimeout(() => {
+                    let role = '';
+                    if (user === 'admin' && pass === 'edudigital') role = 'Admin';
+                    else if (user === 'peserta' && pass === 'edudigital') role = 'Peserta';
+                    
+                    if (role) {
+                        loginSuccess({ username: user, role: role, api_key: localStorage.getItem('ugix_key') || '' });
+                    } else {
+                        loginFailed("Username atau Password salah!");
+                    }
+                }, 1000);
+            } else {
+                // Production GAS Logic
+                google.script.run
+                    .withSuccessHandler(loginSuccess)
+                    .withFailureHandler(err => loginFailed(err.message || "Gagal menghubungi server"))
+                    .loginUser(user, pass);
+            }
+        }
+
+        function loginSuccess(userData) {
+            if(!userData) { loginFailed("Login Gagal"); return; }
+            
+            appState.currentUser = userData;
+            appState.apiKey = userData.api_key || localStorage.getItem('ugix_key') || '';
+            
+            localStorage.setItem('ugix_user', JSON.stringify(userData));
+            if(appState.apiKey) localStorage.setItem('ugix_key', appState.apiKey);
+            
+            document.getElementById('api-key-input').value = appState.apiKey;
+            
+            showToast('Login Berhasil!', 'success');
+            setTimeout(showMainApp, 500);
+        }
+
+        function loginFailed(msg) {
+            showToast(msg, 'error');
+            btnLogin.innerHTML = '<span>Masuk</span> <i class="fas fa-arrow-right text-sm"></i>';
+            btnLogin.disabled = false;
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('ugix_user');
+            appState.currentUser = null;
+            
+            loginSection.classList.remove('hidden');
+            mainSection.classList.add('hidden');
+            mainSection.classList.remove('flex');
+            
+            document.getElementById('login-form').reset();
+            btnLogin.innerHTML = '<span>Masuk</span> <i class="fas fa-arrow-right text-sm"></i>';
+            btnLogin.disabled = false;
+            
+            showToast('Berhasil keluar', 'info');
+        }
+
+        function showMainApp() {
+            loginSection.classList.add('hidden');
+            mainSection.classList.remove('hidden');
+            mainSection.classList.add('flex');
+            
+            document.getElementById('user-display-name').innerText = appState.currentUser.username;
+            document.getElementById('user-display-role').innerText = appState.currentUser.role;
+            document.getElementById('api-key-input').value = appState.apiKey;
+        }
+
+        // ----------------- SETTINGS LOGIC -----------------
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if(!key) {
+                showToast("API Key tidak boleh kosong", "error");
+                return;
+            }
+            
+            appState.apiKey = key;
+            localStorage.setItem('ugix_key', key);
+            
+            if (IS_PREVIEW) {
+                showToast("API Key tersimpan (Lokal)", "success");
+            } else {
+                google.script.run
+                    .withSuccessHandler(() => showToast("API Key tersimpan ke Database", "success"))
+                    .withFailureHandler(err => showToast("Gagal menyimpan ke server: " + err, "error"))
+                    .updateApiKey(appState.currentUser.username, key);
+            }
+        }
+
+        // ----------------- GENERATOR LOGIC -----------------
+        function handleGenerate(e) {
+            e.preventDefault();
+            if (!appState.apiKey) {
+                showToast("Harap masukkan Gemini API Key di Pengaturan terlebih dahulu", "error");
+                if(window.innerWidth < 640) switchTab('settings');
+                return;
+            }
+
+            const rppData = {
+                jenjang: document.getElementById('rpp-jenjang').value,
+                mapel: document.getElementById('rpp-mapel').value,
+                materi: document.getElementById('rpp-materi').value,
+                profil: document.getElementById('rpp-profil').value,
+                waktu: document.getElementById('rpp-waktu').value
+            };
+
+            const btn = document.getElementById('btn-generate');
+            const resContainer = document.getElementById('result-container');
+            const overlay = document.getElementById('loading-overlay');
+            const resText = document.getElementById('result-text');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Menganalisis...</span>';
+            resContainer.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            resText.value = '';
+
+            if (IS_PREVIEW) {
+                // Dummy Generate Logic
+                setTimeout(() => {
+                    const dummyResult = `MODUL AJAR / RENCANA PELAKSANAAN PEMBELAJARAN (RPP)
+
+1. INFORMASI UMUM
+Jenjang/Kelas: ${rppData.jenjang}
+Mata Pelajaran: ${rppData.mapel}
+Materi Pokok: ${rppData.materi}
+Alokasi Waktu: ${rppData.waktu}
+Profil Pelajar Pancasila: ${rppData.profil}
+
+2. KOMPETENSI INTI
+Tujuan Pembelajaran:
+- Peserta didik dapat memahami konsep dasar ${rppData.materi}.
+- Peserta didik mampu mengaplikasikan nilai-nilai Profil Pelajar Pancasila dalam diskusi.
+
+3. KEGIATAN PEMBELAJARAN
+Pendahuluan (15 Menit):
+- Guru membuka dengan salam dan doa.
+- Apersepsi dan penyampaian tujuan.
+
+Kegiatan Inti (Amati, Tanya, Coba, Nalar, Komunikasi):
+- Peserta didik dibagi dalam kelompok.
+- Guru menyajikan materi ${rppData.materi}.
+- Diskusi dan pemecahan masalah.
+
+Penutup (15 Menit):
+- Refleksi pembelajaran.
+- Kesimpulan dan doa penutup.
+
+4. ASESMEN
+- Penilaian Sikap (Observasi Profil Pelajar Pancasila)
+- Penilaian Pengetahuan (Tes Tertulis)
+- Penilaian Keterampilan (Unjuk Kerja)
+`;
+                    finishGenerate(dummyResult);
+                }, 3000);
+            } else {
+                // Production GAS & Gemini
+                google.script.run
+                    .withSuccessHandler(res => finishGenerate(res))
+                    .withFailureHandler(err => {
+                        finishGenerate("Error: " + err.message, true);
+                    })
+                    .generateContent(rppData, appState.currentUser.username, appState.apiKey);
+            }
+        }
+
+        function finishGenerate(resultText, isError = false) {
+            const btn = document.getElementById('btn-generate');
+            const overlay = document.getElementById('loading-overlay');
+            const resText = document.getElementById('result-text');
+
+            overlay.classList.add('hidden');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic"></i> <span>Generate RPP dengan UGIX AI</span>';
+            
+            if(isError) {
+                showToast("Gagal membuat RPP", "error");
+                resText.value = resultText;
+            } else {
+                showToast("RPP Berhasil Dibuat!", "success");
+                resText.value = resultText;
+                // Scroll to result on mobile
+                if(window.innerWidth < 768) {
+                    document.getElementById('result-container').scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+
+        function copyResult() {
+            const text = document.getElementById('result-text').value;
+            if(!text) return;
+            
+            // iFrame compatible copy fallback
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("Teks disalin ke clipboard", "success");
+            } catch (err) {
+                showToast("Gagal menyalin teks", "error");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function downloadPDF() {
+            const text = document.getElementById('result-text').value;
+            if(!text) return;
+            
+            // Simple print trigger for PDF saving
+            const printWindow = window.open('', '', 'height=600,width=800');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Cetak RPP - UGIX AI</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 40px; color: #333; }
+                        pre { white-space: pre-wrap; word-wrap: break-word; font-family: Arial, sans-serif; }
+                    </style>
+                </head>
+                <body>
+                    <h2>RENCANA PELAKSANAAN PEMBELAJARAN (RPP)</h2>
+                    <hr>
+                    <pre>${text}</pre>
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+    </script>
+</body>
+</html>
